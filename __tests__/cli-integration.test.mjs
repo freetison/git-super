@@ -38,7 +38,7 @@ describe('CLI Integration Tests', () => {
 
       expect(stdout).toContain('git-super');
       expect(stdout).toContain('Usage:');
-      expect(stdout).toContain('Options:');
+      expect(stdout).toContain('Authentication');
     });
 
     it('should display help with -h flag', async () => {

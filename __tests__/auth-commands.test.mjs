@@ -37,7 +37,7 @@ describe('Auth Commands Integration', () => {
   let consoleErrorSpy;
   let processExitSpy;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockProvider = {
       name: 'GitHub Copilot',
       isAuthenticated: vi.fn(),
