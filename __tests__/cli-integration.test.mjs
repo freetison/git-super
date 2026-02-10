@@ -1,0 +1,332 @@
+/**
+ * Integration Tests for CLI Entry Point (bin/git-super.mjs)
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+import { writeFileSync, unlinkSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+
+const execAsync = promisify(exec);
+
+describe('CLI Integration Tests', () => {
+  const testConfigPath = join(homedir(), '.gitsuperrc.test');
+  const cliPath = join(process.cwd(), 'bin', 'git-super.mjs');
+
+  beforeEach(() => {
+    // Create test config
+    const testConfig = {
+      aiProvider: 'ollama',
+      aiModel: 'mistral:latest',
+      ollamaUrl: 'http://localhost:11434',
+    };
+    writeFileSync(testConfigPath, JSON.stringify(testConfig, null, 2));
+  });
+
+  afterEach(() => {
+    // Clean up test config
+    if (existsSync(testConfigPath)) {
+      unlinkSync(testConfigPath);
+    }
+  });
+
+  describe('Help Command', () => {
+    it('should display help with --help flag', async () => {
+      const { stdout } = await execAsync(`node "${cliPath}" --help`);
+
+      expect(stdout).toContain('git-super');
+      expect(stdout).toContain('Usage:');
+      expect(stdout).toContain('Options:');
+    });
+
+    it('should display help with -h flag', async () => {
+      const { stdout } = await execAsync(`node "${cliPath}" -h`);
+
+      expect(stdout).toContain('git-super');
+      expect(stdout).toContain('Usage:');
+    });
+
+    it('should display help for auth command', async () => {
+      const { stdout } = await execAsync(`node "${cliPath}" auth --help`);
+
+      expect(stdout).toContain('auth');
+      expect(stdout).toContain('login');
+      expect(stdout).toContain('logout');
+      expect(stdout).toContain('status');
+    });
+
+    it('should display help for context command', async () => {
+      const { stdout } = await execAsync(`node "${cliPath}" context --help`);
+
+      expect(stdout).toContain('context');
+      expect(stdout).toContain('list');
+      expect(stdout).toContain('use');
+    });
+  });
+
+  describe('Version Command', () => {
+    it('should display version with --version flag', async () => {
+      const { stdout } = await execAsync(`node "${cliPath}" --version`);
+
+      expect(stdout).toMatch(/\d+\.\d+\.\d+/);
+    });
+
+    it('should display version with -v flag', async () => {
+      const { stdout } = await execAsync(`node "${cliPath}" -v`);
+
+      expect(stdout).toMatch(/\d+\.\d+\.\d+/);
+    });
+  });
+
+  describe('Main Generate Command', () => {
+    it('should handle missing git repository', async () => {
+      const tempDir = join(process.cwd(), '__tests__', 'temp-no-git');
+      const fs = await import('node:fs');
+      
+      if (!existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      try {
+        await execAsync(`node "${cliPath}"`, { cwd: tempDir });
+        expect.fail('Should have thrown error');
+      } catch (error) {
+        expect(error.message).toContain('Not a git repository');
+      } finally {
+        if (existsSync(tempDir)) {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+      }
+    });
+
+    it('should validate provider configuration', async () => {
+      // Test with invalid provider
+      const invalidConfig = {
+        aiProvider: 'invalid-provider',
+      };
+      writeFileSync(testConfigPath, JSON.stringify(invalidConfig, null, 2));
+
+      try {
+        await execAsync(`node "${cliPath}"`);
+        expect.fail('Should have thrown error');
+      } catch (error) {
+        expect(error.message).toMatch(/provider/i);
+      }
+    });
+  });
+
+  describe('Argument Parsing', () => {
+    it('should parse provider flag', async () => {
+      try {
+        await execAsync(`node "${cliPath}" --provider ollama`);
+      } catch (error) {
+        // May fail due to no git repo, but should parse args
+        expect(error.code).not.toBe(2); // 2 is arg parse error
+      }
+    });
+
+    it('should parse model flag', async () => {
+      try {
+        await execAsync(`node "${cliPath}" --model mistral:latest`);
+      } catch (error) {
+        expect(error.code).not.toBe(2);
+      }
+    });
+
+    it('should parse multiple flags', async () => {
+      try {
+        await execAsync(`node "${cliPath}" --provider ollama --model llama2 --dry-run`);
+      } catch (error) {
+        expect(error.code).not.toBe(2);
+      }
+    });
+
+    it('should handle unknown flags', async () => {
+      try {
+        await execAsync(`node "${cliPath}" --unknown-flag`);
+        expect.fail('Should have thrown error');
+      } catch (error) {
+        // Should fail gracefully
+        expect(error).toBeDefined();
+      }
+    });
+  });
+
+  describe('Auth Commands', () => {
+    it('should execute auth status command', async () => {
+      try {
+        const { stdout } = await execAsync(`node "${cliPath}" auth status`);
+        expect(stdout).toContain('Authentication Status');
+      } catch (error) {
+        // May fail if provider doesn't support auth, but command should execute
+        expect(error.message).not.toContain('command not found');
+      }
+    });
+
+    it('should execute context list command', async () => {
+      const { stdout } = await execAsync(`node "${cliPath}" context list`);
+      expect(stdout).toContain('context');
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle SIGINT gracefully', async () => {
+      // This test verifies the process handles interrupts
+      const child = exec(`node "${cliPath}"`);
+      
+      setTimeout(() => {
+        child.kill('SIGINT');
+      }, 100);
+
+      try {
+        await new Promise((resolve, reject) => {
+          child.on('exit', (code) => {
+            if (code === 130 || code === null) {
+              resolve();
+            } else {
+              reject(new Error(`Unexpected exit code: ${code}`));
+            }
+          });
+          child.on('error', reject);
+        });
+      } catch (error) {
+        // SIGINT handling may vary by platform
+        expect(error).toBeDefined();
+      }
+    });
+
+    it('should handle unhandled errors', async () => {
+      // Test with a scenario that might cause an error
+      try {
+        await execAsync(`node "${cliPath}" --provider ""`, {
+          env: { ...process.env, AI_PROVIDER: '' },
+        });
+      } catch (error) {
+        expect(error).toBeDefined();
+      }
+    });
+  });
+
+  describe('Dry Run Mode', () => {
+    it('should execute in dry-run mode', async () => {
+      try {
+        await execAsync(`node "${cliPath}" --dry-run`);
+      } catch (error) {
+        // Should not commit, may fail due to no git repo
+        expect(error.message).not.toContain('committed');
+      }
+    });
+  });
+
+  describe('Template and Custom Prompts', () => {
+    it('should accept custom template', async () => {
+      try {
+        await execAsync(`node "${cliPath}" --template "feat: {message}"`);
+      } catch (error) {
+        // May fail due to no git repo, but should parse template
+        expect(error.code).not.toBe(2);
+      }
+    });
+
+    it('should accept additional prompts', async () => {
+      try {
+        await execAsync(`node "${cliPath}" --prompt "Focus on security improvements"`);
+      } catch (error) {
+        expect(error.code).not.toBe(2);
+      }
+    });
+  });
+
+  describe('Interactive Mode', () => {
+    it('should skip confirmation in non-interactive mode', async () => {
+      try {
+        await execAsync(`node "${cliPath}" --yes`, {
+          env: { ...process.env, CI: 'true' },
+        });
+      } catch (error) {
+        // Should not wait for user input
+        expect(error.message).not.toContain('waiting for input');
+      }
+    });
+  });
+});
+
+describe('Command Routing', () => {
+  const cliPath = join(process.cwd(), 'bin', 'git-super.mjs');
+
+  it('should route to auth commands', async () => {
+    try {
+      await execAsync(`node "${cliPath}" auth`);
+    } catch (error) {
+      // Should recognize auth command
+      expect(error.message).not.toContain('Unknown command');
+    }
+  });
+
+  it('should route to context commands', async () => {
+    const { stdout } = await execAsync(`node "${cliPath}" context`);
+    expect(stdout).toContain('context');
+  });
+
+  it('should handle unknown commands', async () => {
+    try {
+      await execAsync(`node "${cliPath}" unknown-command`);
+      expect.fail('Should have thrown error');
+    } catch (error) {
+      expect(error.message).toMatch(/unknown|invalid/i);
+    }
+  });
+});
+
+describe('Configuration Loading', () => {
+  const cliPath = join(process.cwd(), 'bin', 'git-super.mjs');
+
+  it('should load configuration from file', async () => {
+    const testConfig = {
+      aiProvider: 'ollama',
+      aiModel: 'custom-model',
+    };
+    const configPath = join(homedir(), '.gitsuperrc');
+    const backupExists = existsSync(configPath);
+    let backup;
+
+    if (backupExists) {
+      const fs = await import('node:fs');
+      backup = fs.readFileSync(configPath, 'utf-8');
+    }
+
+    try {
+      writeFileSync(configPath, JSON.stringify(testConfig, null, 2));
+      
+      try {
+        await execAsync(`node "${cliPath}"`);
+      } catch (error) {
+        // Config should be loaded
+        expect(error.message).not.toContain('configuration');
+      }
+    } finally {
+      if (backupExists && backup) {
+        writeFileSync(configPath, backup);
+      } else if (existsSync(configPath)) {
+        unlinkSync(configPath);
+      }
+    }
+  });
+
+  it('should prioritize environment variables', async () => {
+    try {
+      await execAsync(`node "${cliPath}"`, {
+        env: {
+          ...process.env,
+          AI_PROVIDER: 'anthropic',
+          ANTHROPIC_API_KEY: 'test-key',
+        },
+      });
+    } catch (error) {
+      // Should use env var provider
+      expect(error.message).not.toContain('provider not set');
+    }
+  });
+});

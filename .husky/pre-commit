@@ -1,0 +1,14 @@
+echo "🔍 Running pre-commit checks..."
+echo ""
+
+# Check for TypeScript compilation errors in changed packages only
+echo "📦 Type checking (build)..."
+
+# Use turbo to build only affected packages
+if ! pnpm exec turbo build --affected 2>&1 > /dev/null; then
+  echo "❌ Build failed! Fix compilation errors before committing."
+  exit 1
+fi
+
+echo ""
+echo "✅ All checks passed!"

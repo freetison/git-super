@@ -1,0 +1,40 @@
+{
+  "$comment": "Example multi-organization configuration for git-super",
+  "activeOrg": "local",
+  
+  "organizations": {
+    "work": {
+      "name": "Company Work - Azure OpenAI",
+      "aiProvider": "azure-openai",
+      "aiModel": "gpt-4",
+      "azureTenantId": "your-tenant-id-here",
+      "azureClientId": "your-client-id-here",
+      "azureResourceEndpoint": "https://your-company.openai.azure.com",
+      "azureDeploymentName": "gpt-4",
+      "messageTemplate": "COMPANY-{ticket}: {type}({scope}): {message}",
+      "ticketNumber": ""
+    },
+    
+    "local": {
+      "name": "Local Development - Ollama",
+      "aiProvider": "ollama",
+      "aiModel": "mistral:latest",
+      "ollamaUrl": "http://localhost:11434",
+      "messageTemplate": null
+    },
+    
+    "personal": {
+      "name": "Personal Projects - Anthropic Claude",
+      "aiProvider": "anthropic",
+      "aiModel": "claude-3-5-sonnet-20241022",
+      "anthropicKey": "${ANTHROPIC_API_KEY}",
+      "messageTemplate": null
+    }
+  },
+  
+  "commitRules": {
+    "types": ["feat", "fix", "docs", "style", "refactor", "test", "chore", "perf", "ci", "build"],
+    "maxLength": 72,
+    "allowEmptyScope": true
+  }
+}

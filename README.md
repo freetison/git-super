@@ -6,12 +6,59 @@ Automates the workflow: `git add .` → AI-generated commit message → `git com
 
 ## Features
 
-- ✨ **AI-powered commit messages** using Ollama (local), Claude, or GPT
+- ✨ **AI-powered commit messages** using Ollama (local), Claude, GPT, or enterprise providers
 - 🎯 **Customizable templates** - Add Jira tickets, Linear issues, or custom prefixes
 - 📝 **Conventional Commits** format by default
 - 🌍 **Framework-agnostic** - Works with any git repo, not just Node.js
-- 🔧 **Zero dependencies** - Pure Node.js
+- 🔧 **Minimal dependencies** - Only 1 required dependency (open), optional keytar for secure storage
 - ⚡ **Fast** - No compilation, direct execution
+- 🏢 **Enterprise Support** - OAuth/SSO authentication for Azure OpenAI, GitHub Copilot Enterprise
+- 🔐 **Secure** - OS keychain integration for token storage
+- 🏗️ **Multi-Organization** - Switch between work/personal contexts easily
+
+## Enterprise & OAuth Support (NEW in v0.2.0)
+
+git-super now supports enterprise authentication with OAuth/SSO, perfect for companies using corporate AI services:
+
+### Supported OAuth Providers
+
+- **Azure OpenAI** with Azure AD (Microsoft Entra ID)
+- **GitHub Copilot Enterprise** with GitHub OAuth
+- **Generic OIDC** for any OpenID Connect compliant provider
+
+### Quick OAuth Example
+
+```bash
+# Setup Azure OpenAI with SSO (no API key needed!)
+git super auth login --provider azure-openai
+# Browser opens, authenticate with your company SSO
+# ✅ Token stored securely in OS keychain
+
+# Use normally - token auto-refreshes
+git super
+```
+
+### Multi-Organization Contexts
+
+Switch between different organizational contexts (work, personal, client projects):
+
+```bash
+# List contexts
+git super context list
+
+# Switch to work (Azure OpenAI with SSO)
+git super context switch work
+
+# Switch to personal (local Ollama)
+git super context switch local
+
+# Use git super - automatically uses active context settings
+git super
+```
+
+**📚 Full Documentation:**
+- [OAuth/SSO Setup Guide](docs/OAUTH_SETUP.md)
+- [Multi-Organization Configuration](docs/MULTI_ORG_CONFIG.md)
 
 ## Installation
 

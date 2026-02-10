@@ -1,0 +1,7 @@
+test/
+*.md
+!README.md
+.git/
+.vscode/
+.turbo/
+node_modules/

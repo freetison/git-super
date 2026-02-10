@@ -1,0 +1,59 @@
+{
+  "name": "@theia-core/git-super",
+  "version": "0.2.0",
+  "description": "AI-powered git commits with OAuth/SSO support - works with any repo, supports enterprise authentication",
+  "author": "Angel Sola",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "git-super": "./bin/git-super.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "postinstall": "echo '💡 Run: git config --global alias.super \"!git-super\"'"
+  },
+  "keywords": [
+    "git",
+    "ai",
+    "commit",
+    "ollama",
+    "claude",
+    "openai",
+    "azure",
+    "github-copilot",
+    "oauth",
+    "sso",
+    "enterprise",
+    "conventional-commits",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "open": "^10.1.0"
+  },
+  "optionalDependencies": {
+    "keytar": "^7.9.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.8"
+  },
+  "publishConfig": {
+    "registry": "http://localhost:4873",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Theia-plataform/theia-core-packages",
+    "directory": "packages/git-super"
+  }
+}
