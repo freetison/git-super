@@ -1,5 +1,5 @@
 {
-  "name": "@theia-core/git-super",
+  "name": "@freetison/git-super",
   "version": "0.2.0",
   "description": "AI-powered git commits with OAuth/SSO support - works with any repo, supports enterprise authentication",
   "author": "Angel Sola",
@@ -48,12 +48,12 @@
     "@vitest/coverage-v8": "^2.1.8"
   },
   "publishConfig": {
-    "registry": "http://localhost:4873",
+    "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Theia-plataform/theia-core-packages",
-    "directory": "packages/git-super"
+    "url": "https://github.com/freetison/git-super",
+    "directory": ""
   }
 }
