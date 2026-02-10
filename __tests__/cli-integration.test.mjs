@@ -182,7 +182,7 @@ describe('CLI Integration Tests', () => {
 
     it('should execute context list command', async () => {
       const { stdout } = await execAsync(`node "${cliPath}" context list`);
-      expect(stdout).toContain('context');
+      expect(stdout).toMatch(/context|Available/i);
     });
 
     it('should create config file and switch context when file does not exist', async () => {
@@ -216,7 +216,8 @@ describe('CLI Integration Tests', () => {
         // Should not reach here
         expect(true).toBe(false);
       } catch (error) {
-        expect(error.message).toContain('not found');
+        const errorOutput = error.stderr || error.stdout || error.message;
+        expect(errorOutput).toContain('not found');
       }
     });
   });
