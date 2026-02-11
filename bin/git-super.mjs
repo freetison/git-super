@@ -185,17 +185,28 @@ function hasChanges() {
 
 function getGitDiff() {
   try {
-    // Get staged changes
+    // Get staged changes (most important)
     const staged = exec('git diff --cached', { silent: true }) || '';
     
     // Get unstaged changes
     const unstaged = exec('git diff', { silent: true }) || '';
     
-    // Get status
+    // Get status with renames and file types
     const status = exec('git status --short', { silent: true }) || '';
     
+    // For better context, also get summary stats
+    const statSummary = exec('git diff --cached --stat', { silent: true }) || '';
+    
+    // Combine diff with stat summary for better AI context
+    let combinedDiff = staged || unstaged;
+    
+    // If diff is empty but we have status, append stat summary
+    if (combinedDiff.trim().length === 0 && statSummary.trim().length > 0) {
+      combinedDiff = `Stat summary:\n${statSummary}\n\n${combinedDiff}`;
+    }
+    
     return {
-      diff: staged || unstaged,
+      diff: combinedDiff,
       status,
       hasStaged: staged.length > 0,
       hasUnstaged: unstaged.length > 0,
@@ -244,21 +255,39 @@ function applyTemplate(message, template) {
 // ============================================================================
 
 async function generateCommitMessage(diff, status, repoName) {
-  // Extract just filenames for context
-  const files = status.split('\n')
-    .filter(l => l.trim())
-    .map(l => l.substring(3).trim())
-    .slice(0, 10);
+  // Extract filenames and analyze change types
+  const lines = status.split('\n').filter(l => l.trim());
+  const files = lines.map(l => l.substring(3).trim()).slice(0, 10);
+  
+  // Calculate statistics for better prompt context
+  const stats = {
+    added: lines.filter(l => l.startsWith('A ')).length,
+    modified: lines.filter(l => l.startsWith('M ') || l.startsWith(' M')).length,
+    deleted: lines.filter(l => l.startsWith('D ')).length,
+  };
+  
+  const totalFiles = stats.added + stats.modified + stats.deleted;
+  
+  // Build change summary for AI context
+  const changeSummary = [];
+  if (stats.added > 0) changeSummary.push(`${stats.added} added`);
+  if (stats.modified > 0) changeSummary.push(`${stats.modified} modified`);
+  if (stats.deleted > 0) changeSummary.push(`${stats.deleted} deleted`);
   
   const hasTemplate = CONFIG.messageTemplate && CONFIG.messageTemplate.includes('{message}');
   
   const prompt = `Generate a git commit message following Conventional Commits format.
 
-Files changed:
+Repository: ${repoName}
+Change summary: ${totalFiles} files changed (${changeSummary.join(', ')})
+
+Files changed (first 10):
 ${files.join('\n')}
 
 Diff (first 6000 chars):
 ${diff.substring(0, 6000)}
+
+${diff.trim().length === 0 ? 'Note: Diff is empty (likely file deletions or binary changes). Use file list and change summary above.' : ''}
 
 Rules:
 - Format: ${hasTemplate ? 'type(scope): description (will be inserted in template)' : 'type(scope): description'}
@@ -267,6 +296,7 @@ Rules:
 - Focus on WHAT changed, not HOW
 - Be specific but concise
 - NO quotes, NO explanations, NO extra text
+- ALWAYS generate a message, even if diff is empty
 
 Output ONLY the commit message:`;
 
