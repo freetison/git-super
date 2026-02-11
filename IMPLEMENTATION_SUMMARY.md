@@ -367,3 +367,33 @@ git super
 **Status**: ✅ **IMPLEMENTATION COMPLETE**
 
 The OAuth/SSO authentication system is fully implemented and ready for testing with actual OAuth providers. Users can now authenticate using corporate SSO instead of managing API keys, and can seamlessly switch between different organizational contexts.
+
+---
+
+## 🐛 Bug Fixes
+
+### Empty AI Response Handling (Feb 2026)
+
+**Issue**: When AI returned empty or invalid messages (e.g., `""`), the system would use them without validation, resulting in empty commit messages.
+
+**Scenario**: User reported that a delete-only commit (21 files deleted) resulted in commit message `""` instead of the fallback `chore: remove files`.
+
+**Root Cause**: The `generateCommitMessage()` function only used fallback messages when an exception was thrown. If the AI successfully returned an empty/invalid message, it passed through without validation.
+
+**Fix Implemented**:
+1. Added message validation before accepting AI responses
+2. Rejects: empty strings, quotes-only (`""`), whitespace
+3. Triggers fallback for invalid messages
+4. Added 14 comprehensive tests
+
+**Files Modified**:
+- `bin/git-super.mjs` - Added validation logic
+- `__tests__/empty-message-bug.test.mjs` - New test suite (14 tests)
+- `__tests__/cli-integration.test.mjs` - Integration tests
+- `__tests__/README.md` - Updated documentation
+
+**Test Coverage**: 171 tests passing (+14 new tests)
+
+**Documentation**: See [docs/BUGFIX_EMPTY_MESSAGE.md](docs/BUGFIX_EMPTY_MESSAGE.md) for detailed analysis.
+
+---

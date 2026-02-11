@@ -31,9 +31,15 @@ pnpm test:coverage
 
 ```
 __tests__/
-├── config-loader.test.mjs    # Config loading & env var mapping
-├── providers.test.mjs         # AI provider strategy pattern
-└── fallback.test.mjs          # Fallback message strategies
+├── config-loader.test.mjs       # Config loading & env var mapping
+├── providers.test.mjs            # AI provider strategy pattern
+├── fallback.test.mjs             # Fallback message strategies
+├── cli-integration.test.mjs      # CLI integration tests
+├── empty-message-bug.test.mjs    # Empty AI response validation
+├── auth-strategy.test.mjs        # Authentication strategies
+├── credential-store.test.mjs     # Credential storage
+├── oauth-flows.test.mjs          # OAuth flow handling
+└── token-manager.test.mjs        # Token management
 ```
 
 ---
@@ -118,6 +124,35 @@ Tests the fallback strategy pattern:
 - ✅ Custom strategy support
 - ✅ Edge cases (zeros, negatives, missing props)
 - ✅ Pattern validation (no if-else chains)
+
+---
+
+### Empty Message Bug Tests (14 tests)
+
+Tests validation of AI-generated messages to ensure fallback is used when AI returns invalid responses:
+
+**Message Validation:**
+- ✅ Rejects empty strings
+- ✅ Rejects strings with only quotes (`""`, `''`, ` `` `)
+- ✅ Rejects strings with only whitespace
+- ✅ Accepts valid commit messages
+
+**Delete-Only Commit Scenario:**
+- ✅ Handles 21+ deleted files (user bug report scenario)
+- ✅ Generates correct fallback: `chore: remove files`
+- ✅ Handles large number of deletions
+
+**Mock AI Provider Tests:**
+- ✅ Detects empty provider responses
+- ✅ Detects quotes-only responses (bug scenario)
+- ✅ Detects whitespace-only responses
+
+**Integration Scenarios:**
+- ✅ Uses fallback when AI validation fails
+- ✅ Uses AI message when valid
+- ✅ Handles edge cases (nested quotes, wrapped messages)
+
+**Bug Fix:** Previously, when AI returned `""` (empty quotes) for delete-only commits, the system would use that invalid message. Now it properly validates and falls back to `chore: remove files`.
 
 ---
 
@@ -229,10 +264,11 @@ pnpm test:coverage
 
 ## 📈 Test Metrics
 
-- **Total Tests:** 58
-- **Passing:** 58 ✅
-- **Average Coverage:** 95.66%
-- **Test Execution:** <1s
+- **Total Tests:** 171
+- **Passing:** 171 ✅
+- **Test Files:** 9
+- **Average Coverage:** 95%+
+- **Test Execution:** <20s
 
 ---
 
