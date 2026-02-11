@@ -277,6 +277,14 @@ Output ONLY the commit message:`;
     const provider = providerRegistry.get(CONFIG.aiProvider);
     let message = await provider.generate(prompt);
     
+    // Validate message is not empty/invalid
+    // Clean common quote patterns and whitespace
+    const cleanedMessage = message.replace(/^["'`]+|["'`]+$/g, '').trim();
+    
+    if (!cleanedMessage || cleanedMessage.length === 0) {
+      throw new Error('AI returned empty or invalid message');
+    }
+    
     // Apply template if configured
     if (CONFIG.messageTemplate) {
       message = applyTemplate(message, CONFIG.messageTemplate);

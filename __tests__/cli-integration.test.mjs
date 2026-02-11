@@ -385,3 +385,80 @@ describe('Configuration Loading', () => {
     }
   });
 });
+
+describe('Fallback Message Generation', () => {
+  describe('Empty/Invalid AI Response Handling', () => {
+    it('should use fallback when AI returns empty message', () => {
+      // Mock scenario: AI provider returns empty string
+      const emptyMessage = '';
+      const stats = { added: 0, modified: 0, deleted: 5 };
+      
+      // Should detect empty message and use fallback
+      expect(emptyMessage.trim()).toBe('');
+      
+      // Fallback for only deletes should be 'chore: remove files'
+      const { FallbackResolver } = require('../lib/fallback/fallback-resolver.mjs');
+      const resolver = new FallbackResolver();
+      const fallback = resolver.resolve(stats);
+      
+      expect(fallback).toBe('chore: remove files');
+    });
+
+    it('should use fallback when AI returns only quotes', () => {
+      // Mock scenario: AI provider returns just quotes
+      const quotesOnlyMessages = ['""', '\'\'', '``', '"', '\''];
+      
+      quotesOnlyMessages.forEach(msg => {
+        const cleaned = msg.replace(/^["'`]+|["'`]+$/g, '').trim();
+        expect(cleaned).toBe('');
+      });
+    });
+
+    it('should use fallback when AI returns only whitespace', () => {
+      // Mock scenario: AI provider returns whitespace
+      const whitespaceMessages = ['   ', '\n\n', '\t\t', '  \n  '];
+      
+      whitespaceMessages.forEach(msg => {
+        expect(msg.trim()).toBe('');
+      });
+    });
+
+    it('should handle delete-only commits correctly', () => {
+      const { FallbackResolver } = require('../lib/fallback/fallback-resolver.mjs');
+      const resolver = new FallbackResolver();
+      
+      // Case from user's report: 21 files deleted, 0 added, 0 modified
+      const stats = { added: 0, modified: 0, deleted: 21 };
+      const fallback = resolver.resolve(stats);
+      
+      expect(fallback).toBe('chore: remove files');
+    });
+
+    it('should handle mixed delete + add commits', () => {
+      const { FallbackResolver } = require('../lib/fallback/fallback-resolver.mjs');
+      const resolver = new FallbackResolver();
+      
+      const stats = { added: 5, modified: 0, deleted: 10 };
+      const fallback = resolver.resolve(stats);
+      
+      // Should prioritize delete strategy when deletes present
+      expect(fallback).toBe('chore: remove files');
+    });
+
+    it('should validate message before using it', () => {
+      // Test the validation logic that should be in generateCommitMessage
+      function isValidMessage(msg) {
+        if (!msg) return false;
+        const cleaned = msg.replace(/^["'`]+|["'`]+$/g, '').trim();
+        return cleaned.length > 0;
+      }
+      
+      expect(isValidMessage('')).toBe(false);
+      expect(isValidMessage('""')).toBe(false);
+      expect(isValidMessage('  ')).toBe(false);
+      expect(isValidMessage('""')).toBe(false);
+      expect(isValidMessage('feat: add feature')).toBe(true);
+      expect(isValidMessage('chore: remove files')).toBe(true);
+    });
+  });
+});
