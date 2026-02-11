@@ -36,6 +36,7 @@ __tests__/
 ├── fallback.test.mjs             # Fallback message strategies
 ├── cli-integration.test.mjs      # CLI integration tests
 ├── empty-message-bug.test.mjs    # Empty AI response validation
+├── prompt-generation.test.mjs    # Prompt quality & context (NEW)
 ├── auth-strategy.test.mjs        # Authentication strategies
 ├── credential-store.test.mjs     # Credential storage
 ├── oauth-flows.test.mjs          # OAuth flow handling
@@ -156,6 +157,37 @@ Tests validation of AI-generated messages to ensure fallback is used when AI ret
 
 ---
 
+### Prompt Generation Tests (14 tests) - NEW
+
+Tests that AI receives quality context in all scenarios:
+
+**Delete-Only Commits Context:**
+- ✅ File count statistics in prompt
+- ✅ File list even with empty diff
+- ✅ Meaningful prompt for 21+ deleted files
+
+**Prompt Structure:**
+- ✅ Repository context always present
+- ✅ Empty diff warning when needed
+- ✅ "ALWAYS generate" instruction
+- ✅ Change summary (X added, Y modified, Z deleted)
+
+**Mixed Change Scenarios:**
+- ✅ Handles add/modify/delete combinations
+- ✅ Handles single change types
+
+**Git Statistics:**
+- ✅ Parses `git diff --stat` output
+- ✅ Integrates stat summary into prompt
+
+**Quality Guarantees:**
+- ✅ Minimum AI context even with empty diff
+- ✅ Rich context for all edge cases
+
+**Fix:** Improved prompt generation to provide comprehensive context (file counts, change types, repository name, stat summary) even when diff is empty, preventing AI from returning empty messages in the first place.
+
+---
+
 ## 🔍 What the Tests Validate
 
 ### 1. **No IF-ELSE Chains**
@@ -233,11 +265,11 @@ describe('MyNewStrategy', () => {
 ## 🐛 Debugging Tests
 
 ```bash
-# Run specific test file
-pnpm vitest __tests__/providers.test.mjs
-
-# Run tests matching pattern
-pnpm vitest -t "Ollama Provider"
+# Run specific test 85 (+14 from prompt generation tests)
+- **Passing:** 185 ✅
+- **Test Files:** 10
+- **Average Coverage:** 95%+
+- **Test Execution:** <21ovider"
 
 # Debug mode
 pnpm vitest --inspect-brk

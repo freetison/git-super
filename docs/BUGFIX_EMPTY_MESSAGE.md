@@ -44,6 +44,8 @@ If the AI provider **successfully** returned an empty or invalid message (`""`, 
 
 ## ✅ Solution Implemented
 
+### Phase 1: Message Validation (Safety Net)
+
 Added **message validation** before accepting AI-generated messages:
 
 ```javascript
@@ -65,6 +67,46 @@ try {
   return fallback;
 }
 ```
+
+### Phase 2: Improved Prompt Generation (Root Cause Fix)
+
+Enhanced the prompt to provide **better context** even when diff is empty (common for delete-only commits):
+
+**Before:**
+```javascript
+const prompt = `Files changed:
+${files.join('\n')}
+
+Diff (first 6000 chars):
+${diff.substring(0, 6000)}  // Often empty for deletes!
+`;
+```
+
+**After:**
+```javascript
+const prompt = `Repository: ${repoName}
+Change summary: ${totalFiles} files changed (${stats.added} added, ${stats.modified} modified, ${stats.deleted} deleted)
+
+Files changed (first 10):
+${files.join('\n')}
+
+Diff (first 6000 chars):
+${diff.substring(0, 6000)}
+
+${diff.trim().length === 0 ? 'Note: Diff is empty (likely file deletions or binary changes). Use file list and change summary above.' : ''}
+
+Rules:
+...
+- ALWAYS generate a message, even if diff is empty
+`;
+```
+
+**Key Improvements:**
+1. ✅ **Change statistics** - Shows count of added/modified/deleted files
+2. ✅ **Repository context** - Includes repo name for better context
+3. ✅ **Empty diff handling** - Explicit note when diff is empty
+4. ✅ **Clear instruction** - "ALWAYS generate a message"
+5. ✅ **Git stat integration** - Includes `git diff --stat` summary
 
 ### Validation Rules
 
@@ -121,10 +163,12 @@ Added to [__tests__/cli-integration.test.mjs](../__tests__/cli-integration.test.
 **Before Fix:**
 - 157 tests passing
 - Bug: Empty messages accepted
+- Issue: Poor prompt context for delete-only commits
 
 **After Fix:**
-- 171 tests passing (+14 new tests)
+- **185 tests passing (+28 new tests)**
 - Bug: Empty messages trigger fallback ✅
+- Improvement: Rich prompt context for all scenarios ✅
 
 All existing tests continue to pass, ensuring backward compatibility.
 
@@ -175,18 +219,28 @@ git add .
 
 ## 📝 Files Modified
 
-1. **[bin/git-super.mjs](../bin/git-super.mjs)** (lines 276-282)
-   - Added message validation logic
+1. **[bin/git-super.mjs](../bin/git-super.mjs)**
+   - **Phase 1**: Added message validation logic (lines 276-282)
+   - **Phase 2**: Improved prompt generation (lines 245-290)
+   - **Phase 2**: Enhanced getGitDiff() with stat summary (lines 185-210)
    
 2. **[__tests__/empty-message-bug.test.mjs](../__tests__/empty-message-bug.test.mjs)** (new file)
-   - 14 comprehensive tests
+   - 14 comprehensive validation tests
    
-3. **[__tests__/cli-integration.test.mjs](../__tests__/cli-integration.test.mjs)**
+3. **[__tests__/prompt-generation.test.mjs](../__tests__/prompt-generation.test.mjs)** (new file)
+   - 14 prompt quality tests
+   
+4. **[__tests__/cli-integration.test.mjs](../__tests__/cli-integration.test.mjs)**
    - Added fallback validation tests
    
-4. **[__tests__/README.md](../__tests__/README.md)**
+5. **[__tests__/README.md](../__tests__/README.md)**
    - Updated test count and documentation
 
+6. *AI Quality** - Better prompts = better AI responses
+- **Reliability** - Fallback always available as safety net
+- **Transparency** - Clear warnings when AI fails
+- **Quality** - Better commit history
+- **Context** - Rich information even for edge cases
 ---
 
 ## 🚀 Impact
@@ -207,6 +261,16 @@ This fix integrates with:
 
 ---
 
-## ✨ Summary
+**Two-phase fix implemented:**
+
+1. **Safety Net** - Validates AI responses, falls back on invalid messages
+2. **Root Cause** - Improved prompt provides rich context even for delete-only commits
+
+The combination ensures:
+- AI receives maximum context to generate quality messages
+- If AI still fails, fallback strategies prevent empty commits
+- Users always get meaningful commit messages
+
+**Key Innovation:** Instead of just catching the problem (empty messages), we also fixed why it happens (poor prompt for deletes). Now the AI should generate meaningful messages even for edge cases like delete-only commit
 
 Empty/invalid AI responses now trigger fallback messages instead of being used directly. This ensures all commits have meaningful messages, even when AI fails or misbehaves.

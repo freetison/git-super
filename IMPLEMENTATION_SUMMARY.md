@@ -378,21 +378,39 @@ The OAuth/SSO authentication system is fully implemented and ready for testing w
 
 **Scenario**: User reported that a delete-only commit (21 files deleted) resulted in commit message `""` instead of the fallback `chore: remove files`.
 
-**Root Cause**: The `generateCommitMessage()` function only used fallback messages when an exception was thrown. If the AI successfully returned an empty/invalid message, it passed through without validation.
+**Root Causes**:
+1. No validation of AI responses before use
+2. Poor prompt context for delete-only commits (empty diff)
 
-**Fix Implemented**:
+**Fix Implemented (Two-Phase Approach)**:
+
+**Phase 1 - Safety Net:**
 1. Added message validation before accepting AI responses
 2. Rejects: empty strings, quotes-only (`""`), whitespace
 3. Triggers fallback for invalid messages
-4. Added 14 comprehensive tests
+4. Added 14 validation tests
+
+**Phase 2 - Root Cause:**
+1. Enhanced prompt with change statistics (X added, Y modified, Z deleted)
+2. Added repository context
+3. Integrated `git diff --stat` summary for better context
+4. Added explicit "empty diff" handling note
+5. Instruction: "ALWAYS generate a message, even if diff is empty"
+6. Added 14 prompt quality tests
 
 **Files Modified**:
-- `bin/git-super.mjs` - Added validation logic
-- `__tests__/empty-message-bug.test.mjs` - New test suite (14 tests)
+- `bin/git-super.mjs` - Validation logic + improved prompt generation + enhanced getGitDiff()
+- `__tests__/empty-message-bug.test.mjs` - Validation test suite (14 tests)
+- `__tests__/prompt-generation.test.mjs` - Prompt quality tests (14 tests, NEW)
 - `__tests__/cli-integration.test.mjs` - Integration tests
 - `__tests__/README.md` - Updated documentation
 
-**Test Coverage**: 171 tests passing (+14 new tests)
+**Test Coverage**: 185 tests passing (+28 new tests)
+
+**Impact**:
+- AI receives rich context even for edge cases → Better AI responses
+- Safety net catches failures → Fallback prevents empty commits
+- Two-layer protection: Fix the cause AND catch the problem
 
 **Documentation**: See [docs/BUGFIX_EMPTY_MESSAGE.md](docs/BUGFIX_EMPTY_MESSAGE.md) for detailed analysis.
 
