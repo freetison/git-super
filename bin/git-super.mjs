@@ -30,8 +30,8 @@
  *   OLLAMA_URL    - Ollama API URL (default: http://localhost:11434)
  */
 
-import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { execSync, spawnSync } from 'node:child_process';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -100,6 +100,7 @@ const flags = {
   noVerify: args.includes('--no-verify'),
   init: args.includes('--init'),
   help: args.includes('--help') || args.includes('-h'),
+  all: args.includes('--all'),
 };
 
 // Simple args parser for auth commands
@@ -428,6 +429,98 @@ function initConfig() {
 }
 
 // ============================================================================
+// --all: RUN GIT-SUPER ACROSS ALL REPOS IN WORKSPACE
+// ============================================================================
+
+/**
+ * Scan `root` for git repositories up to `maxDepth` directory levels deep.
+ * Does NOT recurse into a found git repo (avoids nested repos).
+ * Skips hidden dirs and node_modules.
+ */
+function findGitRepos(root, maxDepth = 3) {
+  const repos = [];
+  function scan(dir, depth) {
+    if (depth > maxDepth) return;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    const isRepo = entries.some((e) => e.isDirectory() && e.name === '.git');
+    if (isRepo) {
+      repos.push(dir);
+      return; // don't recurse inside a git repo
+    }
+    for (const entry of entries) {
+      if (
+        entry.isDirectory() &&
+        !entry.name.startsWith('.') &&
+        entry.name !== 'node_modules'
+      ) {
+        scan(join(dir, entry.name), depth + 1);
+      }
+    }
+  }
+  scan(root, 0);
+  return repos;
+}
+
+async function runAll() {
+  log('\n✨ git-super --all: scanning workspace for repos...\n', 'cyan');
+
+  const root = process.cwd();
+  const repos = findGitRepos(root, 3);
+
+  if (repos.length === 0) {
+    log('ℹ️  No git repositories found (depth ≤ 3)', 'yellow');
+    process.exit(0);
+  }
+
+  log(`📦 Found ${repos.length} repo(s):\n`, 'bright');
+  repos.forEach((r) => log(`   ${r.replace(root, '.')}`, 'blue'));
+  log('');
+
+  // Forward relevant flags (except --all itself)
+  const passForward = args.filter((a) => a !== '--all');
+
+  const results = { ok: [], skipped: [], failed: [] };
+
+  for (const repo of repos) {
+    const label = repo.replace(root, '.') || '.';
+    log(`\n${'─'.repeat(60)}`, 'cyan');
+    log(`📂 ${label}`, 'bright');
+
+    const result = spawnSync(process.execPath, [__filename, ...passForward], {
+      cwd: repo,
+      stdio: 'inherit',
+      env: process.env,
+    });
+
+    if (result.status === 0) {
+      results.ok.push(label);
+    } else if (result.status === null) {
+      log(`⚠️  Spawn error in ${label}`, 'yellow');
+      results.failed.push(label);
+    } else {
+      // exit code > 0 usually means "nothing to commit" or a real error — skip
+      results.skipped.push(label);
+    }
+  }
+
+  // Summary
+  log(`\n${'═'.repeat(60)}`, 'cyan');
+  log('\n📊 Summary:', 'bright');
+  log(`   ✅ Committed+pushed : ${results.ok.length}`, 'green');
+  log(`   ⏭️  Skipped (no changes): ${results.skipped.length}`, 'yellow');
+  if (results.failed.length) {
+    log(`   ❌ Errors           : ${results.failed.length}`, 'red');
+    results.failed.forEach((r) => log(`      • ${r}`, 'red'));
+  }
+  log('');
+}
+
+// ============================================================================
 // MAIN LOGIC
 // ============================================================================
 
@@ -443,6 +536,7 @@ function showHelp() {
   log('  git super --no-push    # Commit but don\'t push', 'blue');
   log('  git super --amend      # Amend last commit with new AI message', 'blue');
   log('  git super --no-verify  # Skip pre-commit hooks', 'blue');
+  log('  git super --all        # Run on every repo found in workspace (depth ≤ 3)', 'blue');
   log('  git super --help       # Show this help\n', 'blue');
   
   log('Authentication (OAuth/SSO):', 'bright');
@@ -521,6 +615,11 @@ async function main() {
 
   if (flags.help) {
     showHelp();
+    process.exit(0);
+  }
+
+  if (flags.all) {
+    await runAll();
     process.exit(0);
   }
 
