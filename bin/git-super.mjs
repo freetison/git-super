@@ -448,10 +448,12 @@ function findGitRepos(root, maxDepth = 3) {
       return;
     }
     const isRepo = entries.some((e) => e.isDirectory() && e.name === '.git');
-    if (isRepo) {
+    if (isRepo && depth > 0) {
+      // Found a sub-repo — add it and don't recurse further inside it
       repos.push(dir);
-      return; // don't recurse inside a git repo
+      return;
     }
+    // Always recurse from root (depth 0), and into non-repo dirs
     for (const entry of entries) {
       if (
         entry.isDirectory() &&

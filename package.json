@@ -1,12 +1,12 @@
 {
   "name": "@freetison/git-super",
-  "version": "0.2.3",
+  "version": "0.2.5",
   "description": "AI-powered git commits with OAuth/SSO support - works with any repo, supports enterprise authentication",
   "author": "Angel Sola",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "git-super": "./bin/git-super.mjs"
+    "git-super": "bin/git-super.mjs"
   },
   "files": [
     "bin",
