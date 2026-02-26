@@ -1,6 +1,21 @@
 echo "🔍 Running pre-commit checks..."
 echo ""
 
+# Bump version if needed
+echo "📦 Bumping version if needed..."
+echo ""
+
+# Run linters via lint-staged (graceful fallback)
+echo "📝 Running linters..."
+if command -v lint-staged > /dev/null 2>&1; then
+  lint-staged
+elif npx --no-install lint-staged --version > /dev/null 2>&1; then
+  npx --no-install lint-staged
+else
+  echo "⚠️  lint-staged not found, skipping..."
+fi
+echo ""
+
 # Check for TypeScript compilation errors in changed packages only
 echo "📦 Type checking (build)..."
 

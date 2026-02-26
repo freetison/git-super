@@ -97,7 +97,7 @@ const flags = {
   dryRun: args.includes('--dry-run'),
   noPush: args.includes('--no-push'),
   amend: args.includes('--amend'),
-  noVerify: args.includes('--no-verify'),
+  noVerify: args.includes('--no-verify') || args.includes('-no-verify'),
   init: args.includes('--init'),
   help: args.includes('--help') || args.includes('-h'),
   all: args.includes('--all'),
@@ -483,8 +483,10 @@ async function runAll() {
   repos.forEach((r) => log(`   ${r.replace(root, '.')}`, 'blue'));
   log('');
 
-  // Forward relevant flags (except --all itself)
-  const passForward = args.filter((a) => a !== '--all');
+  // Forward relevant flags (except --all itself), normalizing single-dash long flags
+  const passForward = args
+    .filter((a) => a !== '--all')
+    .map((a) => (a === '-no-verify' ? '--no-verify' : a));
 
   const results = { ok: [], skipped: [], failed: [] };
 
